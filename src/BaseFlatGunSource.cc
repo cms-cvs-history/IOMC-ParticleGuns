@@ -8,7 +8,7 @@
 
 #include "IOMC/ParticleGuns/interface/BaseFlatGunSource.h"
 
-#include "SimDataFormats/HepMCProduct/interface/HepMCProduct.h"
+#include "SimDataFormats/GeneratorProducts/interface/HepMCProduct.h"
 
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 
@@ -27,29 +27,10 @@ using namespace edm;
 using namespace std;
 using namespace CLHEP;
 
-namespace {
-  HepRandomEngine& getEngineReference()
-  {
-
-   Service<RandomNumberGenerator> rng;
-   if(!rng.isAvailable()) {
-    throw cms::Exception("Configuration")
-       << "The RandomNumberProducer module requires the RandomNumberGeneratorService\n"
-          "which appears to be absent.  Please add that service to your configuration\n"
-          "or remove the modules that require it.";
-   }
-
-// The Service has already instantiated an engine.  Make contact with it.
-   return (rng->getEngine());
-  }
-}
-
 BaseFlatGunSource::BaseFlatGunSource( const ParameterSet& pset,
                                       const InputSourceDescription& desc ) : 
    GeneratedInputSource (pset, desc),
-   fEvt(0),
-   fRandomEngine(getEngineReference()),
-   fRandomGenerator(0)
+   fEvt(0)
    // fPDGTable( new DefaultConfig::ParticleDataTable("PDG Table") )
 {
 
@@ -92,8 +73,11 @@ BaseFlatGunSource::BaseFlatGunSource( const ParameterSet& pset,
 
   fVerbosity = pset.getUntrackedParameter<int>( "Verbosity",0 ) ;
 
-// The Service has already instantiated an engine.  Use it.
+   Service<RandomNumberGenerator> rng;
+   long seed = (long)(rng->mySeed()) ;
+   fRandomEngine = new HepJamesRandom(seed) ;
    fRandomGenerator = new RandFlat(fRandomEngine) ;
+   
    fAddAntiParticle = pset.getUntrackedParameter("AddAntiParticle", false) ;
    
 }
@@ -102,6 +86,7 @@ BaseFlatGunSource::~BaseFlatGunSource()
 {
   
   if ( fRandomGenerator != NULL ) delete fRandomGenerator;
+  // do I need to delete the Engine, too ?
   
   // no need to cleanup GenEvent memory - done in HepMCProduct
   // if (fEvt != NULL) delete fEvt ; // double check
